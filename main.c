@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <process.h>
 #include <winsock2.h>
+#include <ws2tcpip.h>
 
 #define CLIENTNUM 1
 
@@ -57,8 +58,9 @@ unsigned __stdcall MultiThreadFunc(void* pArguments)
 	struct sockaddr_in addr;
 	struct sockaddr_in client;
 	int len;
-	SOCKET sock;
-	char buffer[256];
+	SOCKET sock = INVALID_SOCKET;
+	char buffersend[256];
+	char bufferrecv[256];
 	int recvcheck;
 	int sendcheck;
 
@@ -66,35 +68,56 @@ unsigned __stdcall MultiThreadFunc(void* pArguments)
 	WSAStartup(MAKEWORD(2, 0), &wsaData);
 
 	sock0 = socket(AF_INET, SOCK_STREAM, 0);
+	// --- ノンブロッキングモードに設定 ---
+	u_long mode = 1;
+	ioctlsocket(sock0, FIONBIO, &mode);
 
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(5321);
-	addr.sin_addr.S_un.S_addr = INADDR_ANY;
+	addr.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
 
-	while ((sock = connect(sock0, (struct sockaddr*)&client, &len)) == INVALID_SOCKET)
+	while (1)
 	{
-		closesocket(sock);
 
-	}
-	printf("******************");
+		Sleep(10);
 
-	while (1) {
-		len = sizeof(client);
-		recvcheck = recv(sock, buffer, strlen(buffer), 0);
-		if (recvcheck != SOCKET_ERROR)
+		sock = connect(sock0, (struct sockaddr*)&client, &len);
+
+		if (sock != SOCKET_ERROR)
 		{
-			printf("%s\n", buffer);
 			break;
 		}
-		
 
-		closesocket(sock);
+
+
+
+
+
+
+
 	}
-	strcpy(buffer, "FROM CLIENT");
+
+
+
+	printf("*************************************************");
 
 	while (1) {
 		len = sizeof(client);
-		sendcheck = send(sock, buffer, strlen(buffer), 0);
+		recvcheck = recv(sock, bufferrecv, strlen(bufferrecv), 0);
+		if (recvcheck != SOCKET_ERROR)
+		{
+			printf("%s\n", bufferrecv);
+			break;
+		}
+
+
+
+	}
+	strcpy(bufferrecv, "FROM CLIENT");
+
+	while (1) {
+		len = sizeof(client);
+		sendcheck = send(sock, bufferrecv, strlen(bufferrecv), 0);
 		if (sendcheck != SOCKET_ERROR)
 		{
 			printf("SEND SUCCESS\n");
@@ -102,11 +125,11 @@ unsigned __stdcall MultiThreadFunc(void* pArguments)
 		}
 
 
-		closesocket(sock);
 	}
-	
 
 
+
+	closesocket(sock);
 	WSACleanup();
 
 
