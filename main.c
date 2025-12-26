@@ -1,3 +1,6 @@
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+
+
 #include <stdio.h>
 #include <process.h>
 #include <winsock2.h>
@@ -58,7 +61,7 @@ unsigned __stdcall MultiThreadFunc(void* pArguments)
 	struct sockaddr_in addr;
 	struct sockaddr_in client;
 	int len;
-	SOCKET sock = INVALID_SOCKET;
+	int connectcheck = SOCKET_ERROR;
 	char buffersend[256];
 	char bufferrecv[256];
 	int recvcheck;
@@ -73,24 +76,19 @@ unsigned __stdcall MultiThreadFunc(void* pArguments)
 	ioctlsocket(sock0, FIONBIO, &mode);
 
 	addr.sin_family = AF_INET;
-	addr.sin_port = htons(5321);
+	addr.sin_port = htons(6000);
 	addr.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
 
 	while (1)
 	{
 
-		Sleep(10);
 
-		sock = connect(sock0, (struct sockaddr*)&client, &len);
+		connectcheck = connect(sock0, (struct sockaddr*)&client, &len);
 
-		if (sock != SOCKET_ERROR)
+		if (connectcheck != SOCKET_ERROR)
 		{
 			break;
 		}
-
-
-
-
 
 
 
@@ -103,7 +101,7 @@ unsigned __stdcall MultiThreadFunc(void* pArguments)
 
 	while (1) {
 		len = sizeof(client);
-		recvcheck = recv(sock, bufferrecv, strlen(bufferrecv), 0);
+		recvcheck = recv(sock0, bufferrecv, strlen(bufferrecv), 0);
 		if (recvcheck != SOCKET_ERROR)
 		{
 			printf("%s\n", bufferrecv);
@@ -117,7 +115,7 @@ unsigned __stdcall MultiThreadFunc(void* pArguments)
 
 	while (1) {
 		len = sizeof(client);
-		sendcheck = send(sock, bufferrecv, strlen(bufferrecv), 0);
+		sendcheck = send(sock0, bufferrecv, strlen(bufferrecv), 0);
 		if (sendcheck != SOCKET_ERROR)
 		{
 			printf("SEND SUCCESS\n");
@@ -129,7 +127,7 @@ unsigned __stdcall MultiThreadFunc(void* pArguments)
 
 
 
-	closesocket(sock);
+	closesocket(sock0);
 	WSACleanup();
 
 
