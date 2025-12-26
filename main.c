@@ -79,14 +79,16 @@ unsigned __stdcall MultiThreadFunc(void* pArguments)
 	}
 
 	printf("Connected!\n");
-	//Sleep(20000);     このコードのコメントアウトを外すと接続完了が確認できます
+
+
 	// --- 受信 ---
+
 	int recvcheck = recv(sock0, bufferrecv, sizeof(bufferrecv), 0);
 	if (recvcheck > 0)
 	{
 		printf("RECV: %s\n", bufferrecv);
 	}
-
+	//Sleep(20000);
 	// --- 送信 ---
 	strcpy(buffersend, "FROM CLIENT");
 	send(sock0, buffersend, strlen(buffersend), 0);
