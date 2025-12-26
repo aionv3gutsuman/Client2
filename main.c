@@ -88,12 +88,12 @@ unsigned __stdcall MultiThreadFunc(void* pArguments)
 	{
 		printf("RECV: %s\n", bufferrecv);
 	}
-	//Sleep(20000);
+
 	// --- 送信 ---
 	strcpy(buffersend, "FROM CLIENT");
 	send(sock0, buffersend, strlen(buffersend), 0);
 	printf("SEND SUCCESS\n");
-
+	Sleep(20000);
 	closesocket(sock0);
 	WSACleanup();
 
