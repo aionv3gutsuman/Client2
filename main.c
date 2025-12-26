@@ -1,13 +1,10 @@
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 
-
-#include <stdio.h>
-#include <process.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
-
-#define CLIENTNUM 1
-
+#include <windows.h>   // 必ず winsock2.h の後
+#include <stdio.h>
+#include <process.h>
 
 #pragma comment(lib, "ws2_32.lib")
 
@@ -15,42 +12,15 @@ unsigned __stdcall MultiThreadFunc(void* pArguments);
 
 int main()
 {
+	HANDLE handles[1];
+	unsigned threadID[1];
 
-	HANDLE handles[CLIENTNUM] = { NULL };
-	unsigned threadID[CLIENTNUM] = { 0 };
-
-	for (int i = 0; i < CLIENTNUM; ++i)
-	{
-		handles[i] = (HANDLE)_beginthreadex(NULL, 0, &MultiThreadFunc, (void*)i, 0, &threadID);
-		Sleep(1);
-	}
-
-	for (int i = 0; i < CLIENTNUM; ++i)
-	{
-
-		if (handles[i] != 0)
-		{
-			WaitForSingleObject(handles[i], INFINITE);
-		}
-
-	}
-
-	for (int i = 0; i < CLIENTNUM; ++i)
-	{
-
-		if (handles[i] != 0)
-		{
-			CloseHandle(handles[i]);
-		}
-
-	}
-
+	handles[0] = (HANDLE)_beginthreadex(NULL, 0, &MultiThreadFunc, (void*)0, 0, &threadID[0]);
+	WaitForSingleObject(handles[0], INFINITE);
+	CloseHandle(handles[0]);
 
 	return 0;
 }
-
-
-
 
 unsigned __stdcall MultiThreadFunc(void* pArguments)
 {
@@ -59,19 +29,14 @@ unsigned __stdcall MultiThreadFunc(void* pArguments)
 	WSADATA wsaData;
 	SOCKET sock0;
 	struct sockaddr_in addr;
-	struct sockaddr_in client;
-	int len;
-	int connectcheck = SOCKET_ERROR;
-	char buffersend[256];
-	char bufferrecv[256];
-	int recvcheck;
-	int sendcheck;
-
+	char buffersend[256] = { 0 };
+	char bufferrecv[256] = { 0 };
 
 	WSAStartup(MAKEWORD(2, 0), &wsaData);
 
 	sock0 = socket(AF_INET, SOCK_STREAM, 0);
-	// --- ノンブロッキングモードに設定 ---
+
+	// ノンブロッキング
 	u_long mode = 1;
 	ioctlsocket(sock0, FIONBIO, &mode);
 
@@ -79,58 +44,56 @@ unsigned __stdcall MultiThreadFunc(void* pArguments)
 	addr.sin_port = htons(6000);
 	addr.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
 
-	while (1)
+	// --- 非ブロッキング connect ---
+	int ret = connect(sock0, (struct sockaddr*)&addr, sizeof(addr));
+	if (ret == SOCKET_ERROR)
 	{
-
-
-		connectcheck = connect(sock0, (struct sockaddr*)&client, &len);
-
-		if (connectcheck != SOCKET_ERROR)
+		if (WSAGetLastError() == WSAEWOULDBLOCK)
 		{
-			break;
+			fd_set wfds;
+			FD_ZERO(&wfds);
+			FD_SET(sock0, &wfds);
+
+			// ← ここを TIMEVAL に変更
+			TIMEVAL tv;
+			tv.tv_sec = 5;   // 5秒
+			tv.tv_usec = 0;
+
+			printf("Connecting...\n");
+			ret = select(0, NULL, &wfds, NULL, &tv);
+			if (ret <= 0)
+			{
+				printf("Connect timeout or error\n");
+				closesocket(sock0);
+				WSACleanup();
+				return 0;
+			}
 		}
-
-
-
-
+		else
+		{
+			printf("Connect error\n");
+			closesocket(sock0);
+			WSACleanup();
+			return 0;
+		}
 	}
 
-
-
-	printf("*************************************************");
-
-	while (1) {
-		len = sizeof(client);
-		recvcheck = recv(sock0, bufferrecv, strlen(bufferrecv), 0);
-		if (recvcheck != SOCKET_ERROR)
-		{
-			printf("%s\n", bufferrecv);
-			break;
-		}
-
-
-
-	}
-	strcpy(bufferrecv, "FROM CLIENT");
-
-	while (1) {
-		len = sizeof(client);
-		sendcheck = send(sock0, bufferrecv, strlen(bufferrecv), 0);
-		if (sendcheck != SOCKET_ERROR)
-		{
-			printf("SEND SUCCESS\n");
-			break;
-		}
-
-
+	printf("Connected!\n");
+	//Sleep(20000);     このコードのコメントアウトを外すと接続完了が確認できます
+	// --- 受信 ---
+	int recvcheck = recv(sock0, bufferrecv, sizeof(bufferrecv), 0);
+	if (recvcheck > 0)
+	{
+		printf("RECV: %s\n", bufferrecv);
 	}
 
-
+	// --- 送信 ---
+	strcpy(buffersend, "FROM CLIENT");
+	send(sock0, buffersend, strlen(buffersend), 0);
+	printf("SEND SUCCESS\n");
 
 	closesocket(sock0);
 	WSACleanup();
-
-
 
 	return 0;
 }
